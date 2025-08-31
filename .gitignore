@@ -1,0 +1,11 @@
+# Venv
+venv_llm_prompt_and_prefix_tuning 
+
+# Files
+*.csv
+
+# Env
+.env
+
+# Folders
+pics/
