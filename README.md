@@ -9,9 +9,9 @@ Project is still ongoing with lots of updates and revisions in pursuance.
 
 4) config load sanity check. DONE.
 
-5) dataset loader check. START.
+5) dataset loader check. DONE.
 
-6) train -- prompt tuning
+6) train -- prompt tuning. START HERE.
 
 7) train --prefix tuning
 
