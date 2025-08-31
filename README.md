@@ -76,8 +76,31 @@ No: 34
 csvs are contained in the `...data/clean` directory
 
 ## Models
+`google/flan-t5-small` from HugginFace.
+
+The sizie if ~80M parameters which is light weight and fine for CPU/M1 without GPU. Given hardware contraints, training will be realistic within hours and not extend over to days with potentially bigger models (70B). Further, to train on bigger models would require financial circumstances. 
+
+HAVE IT AS AN OPTION
+
+The model is already instructioned tuned which helps with yes and no questions and small enough such the the PEFT( Prompt/Prefix Tuning) shows clear efficiency gains. 
 
 
+### Core Experiemnts
+Base (frozen, no tuning)
+- Use as the baseline model.
+- Predicts “yes/no” with no additional training.
+
+Prompt Tuning
+- Add ~20 soft tokens to input embedding layer.
+- Trainable params ≈ 20k (<0.1%).
+- Training: 3 epochs on PubMedQA train split.
+
+Prefix Tuning
+-Inject ~5 prefix tokens into each of 18 attention modules (encoder + decoder).
+- Trainable params ≈ 200k (~0.2%).
+- Same training setup as prompt tuning.
+
+In the end, compare vs base vs prompt vs prefix.
 
 ## Metrics
 
@@ -101,7 +124,7 @@ csvs are contained in the `...data/clean` directory
 
 
 ## Next Steps
-
+1) Train with a bigger model. A larger model will be trained on more parameters and it encode richer language and sees more resoning patterns. For example, the PedMedQA dataset is very niche, by using a migger model, it has already captued more biomedical resoning in their pretrainiing so the PEFT fidnds it easier to adapt to them with very little data. 
 
 
 # AI/ML End-to-End Build Order
