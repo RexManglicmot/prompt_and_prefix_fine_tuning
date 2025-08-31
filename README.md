@@ -1,6 +1,32 @@
 ## Status
 Project is still ongoing with lots of updates and revisions in pursuance.
 
+1) Prepare environment. DONE.
+
+2) Data ingestion & cleaning. DONE.
+
+3) Stratify splits. DONE.
+
+4) config load sanity check. DONE.
+
+5) dataset loader check. START.
+
+6) train -- prompt tuning
+
+7) train --prefix tuning
+
+8) Evaluate
+
+9) Plots
+
+10) Qualitative examples
+
+11) optional prompt-engineering baselines
+
+12) optional serverless deployment touchpoints
+
+13) finalize README
+
 
 ## Inspiration for this Project
 Tuning is a technique I wanted to practice on and to further build on my AI/ML toolkit. First, during my time at Harvard, it was always on the radar of projects to do but never gotten the chance learn more deeply about it. I took a class on Bioethics at HMS, which I thoroughly enjoyed.Now, after graduation, I have available time on my own for an opportunity to learn about fine-tuning. Second, I as I browsed through many job postings, majority (90%) mentioned that fine-tuning as a required if not desired skill.
@@ -59,6 +85,7 @@ Prefix tuning injects learned vectors into **every transformer layer** as "prefi
 The dataset is the Biomedial Question Answering Dataset where it was built on PubMed abstracts. The task is to give a question and a pubmed abstract and allot the model to predict the answer. 
 
 Relevant columns:
+
 1)`id` - anonymous identificaiton number
 2)`question`- question regarding article
 3)`context` - abstract from PubMed article

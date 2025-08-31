@@ -1,2 +1,22 @@
-pandas
-scikit-learn
+# Core ML/LLM libraries
+torch>=2.0.0
+transformers>=4.41.0
+peft>=0.10.0
+datasets>=2.20.0
+
+# Data processing
+pandas>=2.2.0
+scikit-learn>=1.5.0
+numpy>=1.26.0
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Utilities
+pyyaml>=6.0
+python-dotenv>=1.0.1
+requests>=2.32.0
+
+# Optional (metrics / evaluation helpers)
+evaluate>=0.4.2
