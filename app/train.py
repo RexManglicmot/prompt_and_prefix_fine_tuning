@@ -79,7 +79,7 @@ class PubMedQADataset(Dataset):
             padding=False,
             return_tensors="pt",
         )
-        #with self.tok.as_target_tokenizer():
+        # with self.tok.as_target_tokenizer():
         dec = self.tok(
             text_target=target,       # new way (replaces as_target_tokenizer)
             max_length=self.max_tgt,
