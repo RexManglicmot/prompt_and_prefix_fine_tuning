@@ -244,3 +244,14 @@ git
 
 
 # AI/ML End-to-End Build Order
+
+
+
+Vas.ai setup
+
+1) Set up account
+2) Put $25 into account
+3) Choose template, I chose Pytorch as it was suitable to my build
+4) Choose the closest GPU cloud server available
+5) Create Instance
+6) Find SSH key 

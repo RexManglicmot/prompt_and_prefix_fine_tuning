@@ -21,8 +21,8 @@ data:
     Instruction: Answer "yes" or "no" based on the abstract.
 
 model:
-  backbone: google/flan-t5-small 
-  tokenizer: google/flan-t5-small
+  backbone: google/flan-t5-xl       # ~3B # CHANGED, was google/flan-t5-small
+  tokenizer: google/flan-t5-xl      # ~3B # CHANGED, was google/flan-t5-small
 
 core:                              # always evaluated
   compare_base: true               # Base (no tuning)
@@ -51,7 +51,7 @@ peft:
 
 train:
   epochs: 3
-  batch_size: 8
+  batch_size: 2   # CHANGED, was 8
 
   # separate lrs for PEFT types (small adapters can use higher lr)
   lr_prompt: 0.002
@@ -74,7 +74,7 @@ selective_prediction:
 compute:
   backend: cloud                 # CHANGED    # local | cloud
   device: cuda                   # CHANGED    # auto | cpu | mps | cuda
-  mixed_precision: bf16                       # bf16 | fp16 | none
+  mixed_precision: fp16          # CHANGED    # bf16 | fp16 | none
   compile: false                              # optional torch.compile speedup
   provider: vast.ai              # CHANGED    # vast.ai | colab | aws (free text) # IF, choose to do GPU, will update
 
