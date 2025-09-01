@@ -8,9 +8,9 @@ project:
 
 data:
   # paths to stratified csvs, should contain only 4 columns
-  train_csv: /Users/Rex/vscode/decrease_hallucinations_via_chained_multimethods/llm_prompt_and_prefix_tuning/data/clean_final/pubmedqa_train_clean.csv
-  val_csv:   /Users/Rex/vscode/decrease_hallucinations_via_chained_multimethods/llm_prompt_and_prefix_tuning/data/clean_final/pubmedqa_val_clean.csv
-  test_csv:  /Users/Rex/vscode/decrease_hallucinations_via_chained_multimethods/llm_prompt_and_prefix_tuning/data/clean_final/pubmedqa_test_clean.csv
+  train_csv: data/clean_final/pubmedqa_train_clean.csv
+  val_csv: data/clean_final/pubmedqa_val_clean.csv
+  test_csv: data/clean_final/pubmedqa_test_clean.csv
 
   # input formatting
   max_input_length: 256          # truncate context to fit
