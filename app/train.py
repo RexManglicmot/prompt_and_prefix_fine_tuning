@@ -81,7 +81,7 @@ class PubMedQADataset(Dataset):
         )
         #with self.tok.as_target_tokenizer():
         dec = self.tok(
-            text_target=target,       # ✅ new way (replaces as_target_tokenizer)
+            text_target=target,       # new way (replaces as_target_tokenizer)
             max_length=self.max_tgt,
             truncation=True,
             padding=False,
