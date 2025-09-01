@@ -1,7 +1,7 @@
 # Core ML/LLM libraries
 torch
 transformers==4.41.2
-peftpeft==0.10.0
+peft==0.10.0
 datasets>=2.20.0
 accelerate==0.30.1
 

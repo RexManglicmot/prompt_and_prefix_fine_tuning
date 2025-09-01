@@ -1,5 +1,7 @@
 # Venv
+# pip does not work for the first one
 venv_llm_prompt_and_prefix_tuning 
+venv_2
 
 # Files
 *.pyc
