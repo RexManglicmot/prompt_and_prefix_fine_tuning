@@ -12,6 +12,8 @@ Writes:
 """
 
 import os
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0") # GPU Issues
+
 import json
 from dataclasses import dataclass
 from typing import Dict, List
@@ -77,19 +79,19 @@ class PubMedQADataset(Dataset):
             padding=False,
             return_tensors="pt",
         )
-        with self.tok.as_target_tokenizer():
-            dec = self.tok(
-                target,
-                max_length=self.max_tgt,
-                truncation=True,
-                padding=False,
-                return_tensors="pt",
-            )
+        #with self.tok.as_target_tokenizer():
+        dec = self.tok(
+            text_target=target,       # ✅ new way (replaces as_target_tokenizer)
+            max_length=self.max_tgt,
+            truncation=True,
+            padding=False,
+            return_tensors="pt",
+        )
 
         item = {
             "input_ids": enc["input_ids"][0],
             "attention_mask": enc["attention_mask"][0],
-            "final_decision": dec["input_ids"][0],
+            "labels": dec["input_ids"][0],
         }
         return item
 
@@ -156,6 +158,10 @@ def train_one(cfg, method: str):
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.tokenizer, use_fast=True)
     model = AutoModelForSeq2SeqLM.from_pretrained(cfg.model.backbone)
 
+    # ---- hygiene fixes ----
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.use_cache = False
+
     # optional mixed precision flags from config
     use_fp16 = str(cfg.compute.mixed_precision).lower() == "fp16"
     use_bf16 = str(cfg.compute.mixed_precision).lower() == "bf16"
@@ -177,7 +183,7 @@ def train_one(cfg, method: str):
         cfg.data.max_input_length, cfg.data.max_target_length
     )
 
-    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model, pad_to_multiple_of=8) # <-- ensures tensor shapes align with GPU
 
     # attach PEFT adapter
     model = attach_peft(model, cfg, method)
@@ -192,13 +198,14 @@ def train_one(cfg, method: str):
         learning_rate=(cfg.train.lr_prompt if method == "prompt_tuning" else cfg.train.lr_prefix),
         weight_decay=cfg.train.weight_decay,
         logging_steps=cfg.train.logging_steps,
-        evaluation_strategy="epoch",
+        evaluation_strategy="epoch",                              # was 'evaluation_strategy' but error occured in GPU instance # Changed it back to v4
         save_strategy=cfg.train.save_strategy,
         lr_scheduler_type=cfg.train.scheduler,
         warmup_ratio=cfg.train.warmup_ratio,
         fp16=use_fp16,
         bf16=use_bf16,
-        predict_with_generate=False,
+        optim=cfg.train.optimizer,
+        # predict_with_generate=False,                      # was hat error is also from Transformers v5. In v5, predict_with_generate is no longer a valid TrainingArguments kwarg (it used to be in v4; in v5 you’d use Seq2SeqTrainingArguments or just omit it).
         report_to=[],
     )
 
@@ -252,3 +259,16 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# 8/31/25
+# Start 7:33pm
+# End 7:50 error
+
+# Start 8:02pm
+# ITS WORKING, saw the epochs and all that
+# Nevermind error
+# Had to go back to v4
+
+# Start 8:21pm
+# End 8:26 pm WOOOOOOOOO!!!!

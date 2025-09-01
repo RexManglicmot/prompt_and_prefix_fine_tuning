@@ -17,7 +17,7 @@ data:
   max_target_length: 4           # "yes"/"no"
   text_template: |
     Question: {question}
-    Abstract: {context}
+    Abstract: {contexts}
     Instruction: Answer "yes" or "no" based on the abstract.
 
 model:
@@ -39,7 +39,7 @@ baselines:                         # optional prompt-engineering baselines (no t
     {demos}
 
     Question: {question}
-    Abstract: {context}
+    Abstract: {contexts}
     Answer:
 
 peft:
@@ -54,13 +54,14 @@ train:
   batch_size: 2   # CHANGED, was 8
 
   # separate lrs for PEFT types (small adapters can use higher lr)
-  lr_prompt: 0.002
-  lr_prefix: 0.001
+  lr_prompt: 5e-3
+  lr_prefix: 1e-2
 
-  optimizer: adamw
-  weight_decay: 0.01
-  scheduler: linear
+  optimizer: adafactor
+  weight_decay: 0.0
+  scheduler: constant_with_warmup
   warmup_ratio: 0.1
+  max_grad_norm: 1.0
 
   # checkpointing / logging
   save_strategy: epoch
@@ -74,7 +75,7 @@ selective_prediction:
 compute:
   backend: cloud                 # CHANGED    # local | cloud
   device: cuda                   # CHANGED    # auto | cpu | mps | cuda
-  mixed_precision: fp16          # CHANGED    # bf16 | fp16 | none
+  mixed_precision: bf16           # CHANGED    # bf16 | fp16 | none
   compile: false                              # optional torch.compile speedup
   provider: vast.ai              # CHANGED    # vast.ai | colab | aws (free text) # IF, choose to do GPU, will update
 
