@@ -4,7 +4,7 @@ Train PEFT adapters (Prompt Tuning / Prefix Tuning) on PubMedQA.
 
 Reads:
   - config.yaml (paths, hyperparams, peft settings)
-  - data/pubmedqa_{train,val}.csv (id, question, context, label)
+  - data/pubmedqa_{train,val}.csv (id, question, contexts, final_decision)
 
 Writes:
   - outputs/<method>-adapter/  (PEFT weights + trainer checkpoints)
@@ -46,8 +46,8 @@ from app.config import load_config
 @dataclass
 class RowExample:
     question: str
-    context: str
-    label: str  # "yes" | "no"
+    contexts: str
+    final_decision: str  # "yes" | "no"
 
 
 class PubMedQADataset(Dataset):
@@ -67,7 +67,7 @@ class PubMedQADataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         row = self.df.iloc[idx]
-        prompt = self.tmpl.format(question=row["question"], context=row["contexts"])
+        prompt = self.tmpl.format(question=row["question"], contexts=row["contexts"])
         target = str(row["final_decision"]).strip().lower()  # "yes"/"no"
 
         enc = self.tok(
@@ -165,7 +165,7 @@ def train_one(cfg, method: str):
     val_df   = pd.read_csv(cfg.data.val_csv)
 
     # basic column assertions
-    for need in ["id", "question", "context", "label"]:
+    for need in ["id", "question", "contexts", "final_decision"]:
         assert need in train_df.columns and need in val_df.columns, f"Missing '{need}' in CSVs"
 
     ds_train = PubMedQADataset(
