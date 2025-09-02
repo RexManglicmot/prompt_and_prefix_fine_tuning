@@ -284,3 +284,5 @@ if __name__ == "__main__":
 # optimizer error and float error
 # Start: 9:43 am...working!!
 # End 9:47am quick
+
+# Use the GPU instances  in the vastai_instances/...GPU was much faster and cleaner

@@ -238,12 +238,18 @@ def main():
         # Add this debug snippet
         print("[eval] active_adapter:", getattr(model, "active_adapter", None))
         print("[eval] peft_config keys:", list(getattr(model, "peft_config", {}).keys()))
+        print()
 
+        print(f"[eval] num_virtual_tokens: {cfg.peft.prompt_num_virtual_tokens if method == 'prompt_tuning' else cfg.peft.prefix_num_virtual_tokens}")
+        print(f"[eval] lr_prompt: {cfg.train.lr_prompt}")
+        print(f"[eval] lr_prefix: {cfg.train.lr_prefix}")
+        print()
         os.makedirs(save_root, exist_ok=True)
 
         eval_split(cfg, "val",  val_df,  tok, model, save_root, device)
         eval_split(cfg, "test", test_df, tok, model, save_root, device)
-
+        print()
+        
     print("\n✅ Evaluation complete.")
 
 
