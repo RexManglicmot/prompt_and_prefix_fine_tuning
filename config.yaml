@@ -54,10 +54,10 @@ train:
   batch_size: 2   # CHANGED, was 8
 
   # separate lrs for PEFT types (small adapters can use higher lr)
-  lr_prompt: 5e-3
-  lr_prefix: 1e-2
+  lr_prompt: 1e-3
+  lr_prefix: 5e-4
 
-  optimizer: adafactor
+  optimizer: adamw_torch                # was adafactor
   weight_decay: 0.0
   scheduler: constant_with_warmup
   warmup_ratio: 0.1
@@ -73,11 +73,11 @@ selective_prediction:
   tau_grid: [0.5, 0.6, 0.7, 0.8, 0.9]
 
 compute:
-  backend: cloud                 # CHANGED    # local | cloud
-  device: cuda                   # CHANGED    # auto | cpu | mps | cuda
-  mixed_precision: bf16           # CHANGED    # bf16 | fp16 | none
+  backend: cloud                  # CHANGED    # local | cloud
+  device: cpu                     # CHANGED from cuda (GPU train) -> cpu (local for eval)   # auto | cpu | mps | cuda
+  mixed_precision: none           # CHANGED from fp16 -> bf16 (GPU on train) -> none(local for eval)    # bf16 | fp16 | none
   compile: false                              # optional torch.compile speedup
-  provider: vast.ai              # CHANGED    # vast.ai | colab | aws (free text) # IF, choose to do GPU, will update
+  provider: vast.ai               # CHANGED    # vast.ai | colab | aws (free text) # IF, choose to do GPU, will update
 
 # To use a cloud GPU, set... 
 # compute.device: cuda

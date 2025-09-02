@@ -11,11 +11,11 @@ Project is still ongoing with lots of updates and revisions in pursuance.
 
 5) dataset loader check. DONE.
 
-6) train -- prompt tuning. START HERE.
+6) train -- prompt tuning. DONE.
 
-7) train --prefix tuning
+7) train --prefix tuning. DONE
 
-8) Evaluate
+8) Evaluate. START HERE
 
 9) Plots
 
@@ -255,3 +255,10 @@ Vas.ai setup
 4) Choose the closest GPU cloud server available
 5) Create Instance
 6) Find SSH key 
+
+
+While in instance
+- `cd /workspace`
+- `git clone`
+- `cd`
+- `pip install -r requirements.txt`

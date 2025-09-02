@@ -190,12 +190,16 @@ def train_one(cfg, method: str):
 
     # training args
     out_dir = os.path.join(cfg.project.output_dir, f"{method}-adapter")
+    
+    # Had to change the lr to a float type
+    lr = float(cfg.train.lr_prompt if method == "prompt_tuning" else cfg.train.lr_prefix)
+
     args = TrainingArguments(
         output_dir=out_dir,
         num_train_epochs=cfg.train.epochs,
         per_device_train_batch_size=cfg.train.batch_size,
         per_device_eval_batch_size=cfg.train.batch_size,
-        learning_rate=(cfg.train.lr_prompt if method == "prompt_tuning" else cfg.train.lr_prefix),
+        learning_rate=lr,
         weight_decay=cfg.train.weight_decay,
         logging_steps=cfg.train.logging_steps,
         evaluation_strategy="epoch",                              # was 'evaluation_strategy' but error occured in GPU instance # Changed it back to v4
@@ -272,3 +276,11 @@ if __name__ == "__main__":
 
 # Start 8:21pm
 # End 8:26 pm WOOOOOOOOO!!!!
+# SOMETHING wrong
+
+#9/1/25 try again
+# Start 9:07am
+# model is downloading on Instance
+# optimizer error and float error
+# Start: 9:43 am...working!!
+# End 9:47am quick
