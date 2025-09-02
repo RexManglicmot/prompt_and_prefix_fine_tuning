@@ -11,7 +11,9 @@ venv_2
 
 # Folders
 pics/
-vastai_instances
+vastai_instances/
+vastai_retry
+
 
 # WILL CHANGE
 outputs/ 

@@ -15,9 +15,9 @@ Project is still ongoing with lots of updates and revisions in pursuance.
 
 7) train --prefix tuning. DONE
 
-8) Evaluate. START HERE
+8) Evaluate. DONE.
 
-9) Plots
+9) Plots. START HERE.
 
 10) Qualitative examples
 
@@ -259,6 +259,12 @@ Vas.ai setup
 
 While in instance
 - `cd /workspace`
-- `git clone`
-- `cd`
+- `git clone` on the repository address
+- `cd llm_prompt_and_prefix_tuning`
 - `pip install -r requirements.txt`
+- run `train.py`
+- run `eval.py` -> will produce an `outputs/` directory
+- `cd /workspace` because need to go up one directory to make `llm_prompt_and_prefix_tuning` into a tgz
+- run `tar -czf llm_prompt_and_prefix_tuning.tgz llm_prompt_and_prefix_tuning'
+- go to vast.ai jupyter notebook interface and now download file and unpack into local VS Code directory
+
