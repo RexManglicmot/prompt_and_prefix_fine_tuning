@@ -1,28 +1,6 @@
-# Venv
-# pip does not work for the first one
-venv_llm_prompt_and_prefix_tuning 
-venv_2
+.DS_Store
 
-# Files
-*.pyc
-
-# Env
-.env
-
-# Folders
-pics/
-vastai_instances/
-vastai_retry
-
-# WILL CHANGE
-tools/.ipynb_checkpoints/
-*.tgz
-._*
-*.ipynb
 outputs/**
 !outputs/**/*.png
-!outputs/**/metrics_*.json
-!outputs/**/preds_*.csv
-!outputs/**/cm_*.csv
-!outputs/**/summary*.csv
-.DS_Store
+!outputs/**/*.json
+!outputs/**/*.csv
