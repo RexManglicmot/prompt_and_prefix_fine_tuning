@@ -19,3 +19,10 @@ tools/.ipynb_checkpoints/
 *.tgz
 ._*
 *.ipynb
+outputs/**
+!outputs/**/*.png
+!outputs/**/metrics_*.json
+!outputs/**/preds_*.csv
+!outputs/**/cm_*.csv
+!outputs/**/summary*.csv
+.DS_Store
