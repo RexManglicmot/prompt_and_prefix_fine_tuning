@@ -5,7 +5,6 @@ Dataset loader check for PubMedQA PEFT project.
 - Verifies they exist
 - Prints row counts and class balance
 - Previews a formatted prompt from config.data.text_template
-Run:  python app/dataset.py
 """
 
 import os
@@ -23,7 +22,7 @@ def describe_split(df: pd.DataFrame, name: str) -> None:
 
 def build_prompt(cfg, row: pd.Series) -> str:
     tmpl = cfg.data.text_template
-    return tmpl.format(question=row["question"], context=row["contexts"])
+    return tmpl.format(question=row["question"], contexts=row["contexts"])
 
 def preview_prompt(cfg, df: pd.DataFrame, n: int = 1) -> None:
     print("\n--- Prompt preview ---")
@@ -72,5 +71,7 @@ if __name__ == "__main__":
 
 # "-m" The -m flag tells Python to treat app/ as a package.
 # This way, from app.config import load_config will work.
+
+#script only prints to stdout (split sizes, class balance, a prompt preview) and then exits. It doesn’t create or modify any files...INTERESTING.....!!
 
 # Run python3 -m app.dataset

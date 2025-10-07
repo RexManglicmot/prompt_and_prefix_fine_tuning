@@ -32,8 +32,8 @@ core:                              # always evaluated
 
 # Optional
 baselines:                         # optional prompt-engineering baselines (no training)
-  zero_shot: false                 # set true to run
-  few_shot_k: 0                    # set 3 or 5 to run few-shot
+  zero_shot: true                 # set true to run
+  few_shot_k: 5                    # set 3 or 5 to run few-shot
   few_shot_template: |
     You are a biomedical QA system. Answer "yes" or "no".
     {demos}
@@ -44,17 +44,17 @@ baselines:                         # optional prompt-engineering baselines (no t
 
 peft:
   # Prompt Tuning (soft tokens prepended once at input)
-  prompt_num_virtual_tokens: 20
+  prompt_num_virtual_tokens: 50 # 80 #50 # 20
 
   # Prefix Tuning (prefix key/values injected at each attention module)
-  prefix_num_virtual_tokens: 5
+  prefix_num_virtual_tokens: 50 # 5
 
 train:
-  epochs: 3
+  epochs: 13
   batch_size: 2   # CHANGED, was 8
 
   # separate lrs for PEFT types (small adapters can use higher lr)
-  lr_prompt: 1e-3
+  lr_prompt: 7e-3 # 1e-3
   lr_prefix: 5e-4
 
   optimizer: adamw_torch                # was adafactor
@@ -74,7 +74,7 @@ selective_prediction:
 
 compute:
   backend: cloud                  # CHANGED    # local | cloud
-  device: cpu                     # CHANGED from cuda (GPU train) -> cpu (local for eval)   # auto | cpu | mps | cuda
+  device: cuda                     # CHANGED from cuda (GPU train) -> cpu (local for eval)   # auto | cpu | mps | cuda
   mixed_precision: none           # CHANGED from fp16 -> bf16 (GPU on train) -> none(local for eval)    # bf16 | fp16 | none
   compile: false                              # optional torch.compile speedup
   provider: vast.ai               # CHANGED    # vast.ai | colab | aws (free text) # IF, choose to do GPU, will update
@@ -84,13 +84,13 @@ compute:
 # compute.backend: cloud
 # fill compute.provider
 
-serverless:
-  # Hugging Face Inference API model repos (for latency/demo)
-  base_repo: ""                  # e.g., google/flan-t5-small
-  tuned_repo_prompt: ""          # e.g., your-username/pubmedqa-flant5s-prompt
-  tuned_repo_prefix: ""          # e.g., your-username/pubmedqa-flant5s-prefix
-  timeout_s: 30
-  max_retries: 2
+# serverless:
+#   # Hugging Face Inference API model repos (for latency/demo)
+#   base_repo: ""                  # e.g., google/flan-t5-small
+#   tuned_repo_prompt: ""          # e.g., your-username/pubmedqa-flant5s-prompt
+#   tuned_repo_prefix: ""          # e.g., your-username/pubmedqa-flant5s-prefix
+#   timeout_s: 30
+#   max_retries: 2
 
 evaluation:
   # which reports/plots to generate
