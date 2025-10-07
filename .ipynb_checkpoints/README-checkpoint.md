@@ -3,22 +3,27 @@
 
 
 ## Inspiration
-I wanted to 
+I wanted learned more about fine-tuning and I decided to try something different other than LoRa. I found these two techniques online from this [YouTube video by Dr. Maryam Miradi](https://www.youtube.com/watch?v=HkZOGGvZzg4&t=422s) where she brielfy went over the concept. I then decided to embark to learn more and apply it to my personal interests. 
 
 
 ## Introduction
 Full fine-tuning sounds powerful but is rarely the right first move in healthcare: it needs large labeled datasets, long training cycles, expensive GPUs, and strict MLOps to track new weights. There needs to be better options:
 
-1) Prompt tuning is lightweight adaptation that keeps the base model frozen. Prompt tuning changes only the instructions and response format—no weights updated—so teams can A/B test quickly, ship improvements in hours, and revert instantly if needed.
+1) **Prompt tuning** is lightweight adaptation that keeps the base model frozen. Prompt tuning changes only the instructions and response format—no weights updated—so teams can A/B test quickly, ship improvements in hours, and revert instantly if needed.
   
-2) Prefix tuning (PEFT) learns tiny trainable “prefix” vectors while leaving the foundation model untouched, delivering durable accuracy gains with a small compute budget and simple change control. Together, these approaches cut time-to-value, reduce spend, and make it easy to tailor a single 7B base to many biomedical QA workflows without re-platforming.
+2) **Prefix tuning (PEFT**) learns tiny trainable “prefix” vectors while leaving the foundation model untouched, delivering durable accuracy gains with a small compute budget and simple change control. Together, these approaches cut time-to-value, reduce spend, and make it easy to tailor a single 7B base to many biomedical QA workflows without re-platforming.
 
 These two fine-tuning options matters to the business because it delivers **speed to value**, letting teams iterate in hours or days instead of weeks, while **lowering cost** by training and storing small adapters and reusing the same base model across use cases. Keeping foundation weights immutable **strengthens governance and risk with easier audits**, rollbacks, and approvals. It also increases operational flexibility by enabling different adapters for different clinics or workflows without re-platforming.
 
 ## Dataset
+I used the **PubMedQA-Labeled** from the [pubmedqa github](https://github.com/pubmedqa/pubmedqa/blob/master/data/ori_pqal.json)from `yes`/`no` subset (I dropped the `maybe` category). Each record has a `question`, `supporting contexts`, and a `final_decision` label. In terms of cleaning, I normalized labels to lowercase yes/no, stripped whitespace, dropped rows with empty text, and deduplicate by (question, contexts) to avoid leakage. I then stratified a 80/10/10 split with a fixed seed (42) so the class ratio (~62% yes / ~38% no) is preserved across train/val/test.
 
-
-
+| Split     |       N |     Yes |      No |     Yes % |      No % |
+| --------- | ------: | ------: | ------: | --------: | --------: |
+| Train     |     712 |     442 |     270 |     62.1% |     37.9% |
+| Val       |      89 |      55 |      34 |     61.8% |     38.2% |
+| Test      |      89 |      55 |      34 |     61.8% |     38.2% |
+| **Total** | **890** | **552** | **338** | **62.0%** | **38.0%** |
 
 
 ## Model
@@ -77,31 +82,38 @@ Both adapters deliver large gains over Base (Accuracy 0.45 → 0.72–0.74, Macr
 
 ## Results: Visuals
 ![Macro-F1](./outputs/viz/performance_bar_test.png)
-Both adaptations outperform the base where prompt gains +0.27 Accuracy (0.45→0.72) and +0.26 Macro-F1 (0.39→0.65), while prefix gains +0.29 Accuracy (0.45→0.74) and +0.31 Macro-F1 (0.39→0.70). Prefix tuning is the top performer, edging prompt by +0.02 Accuracy and +0.05 Macro-F1.
+
+Both adaptations outperform the base where **Prompt** gains **+0.27 Accuracy (0.45→0.72)** and **+0.26 Macro-F1 (0.39→0.65)**, while **Prefix** gains **+0.29 Accuracy (0.45→0.74)** and **+0.31 Macro-F1 (0.39→0.70)**. Prefix tuning is the top performer, edging prompt by +0.02 Accuracy and +0.05 Macro-F1.
 
 
 ![Latency](./outputs/viz/latency_bar_test.png)
+
 Latency is comparable with a range of 0.016–0.021 seconds, so the **quality gains from prompt/prefix tuning come with no material runtime cost**. Prefix essentially matches base (+0.001 s), while Prompt adds ~0.005 s from longer inputs.
 
 
 ![param_footprint](./outputs/viz/param_footprint_bar.png)
-Train & ship small adapters instead of new models. Adapters are tiny: Prompt ≈ 205K and Prefix ≈ 4.9M trainable parameters—both <0.1% of a 7B base while keeping foundation weights frozen. Prompt is ~24× smaller (maximally budget-friendly), whereas Prefix spends a few extra million parameters to secure the top accuracy gains.
+
+Train & ship small adapters instead of new models. Adapters are tiny where **Prompt ≈ 205K** and **Prefix ≈ 4.9M** trainable parameters—both <0.1% of a 7B base while keeping foundation weights frozen. Prompt is ~24× smaller (maximally budget-friendly), whereas Prefix spends a few extra million parameters to secure the top accuracy gains.
 
 
 ![prompt](./outputs/viz/cm_prompt_tuning_test.png)
+
 Prompt tuning is highly sensitive to “yes”—it correctly captures 52/55 positives (recall ≈ 0.95), which is great for not missing actionable findings. The trade-off is specificity: with 22 false positives vs 12 true negatives (“no” recall ≈ 0.35), it tends to over-call “yes.” For deployment, calibrate the decision threshold and train with more (or harder) no examples or class weighting to cut false positives while preserving the strong yes recall.
 
 
 ![prefix](./outputs/viz/cm_prefix_tuning_test.png)
+
 Prefix tuning shows a balanced error profile: it captures 49/55 positives (recall ≈ 0.89) and yields 17 TN / 17 FP on negatives (specificity ≈ 0.50; precision ≈ 0.74). Overall performance is Accuracy ≈ 0.74 (66/89) with Macro-F1 ≈ 0.70, emphasizing strong sensitivity while keeping false alarms moderate—appropriate for clinical QA summaries.
 
 
 ![eval_macro_f1](./outputs/viz/eval_macro_f1_per_epoch.png)
+
 Macro-F1 climbs rapidly in the first **3–5 epochs** and then plateaus. **Prefix tuning** stays ahead by roughly **0.05–0.10** across most epochs, ending around **0.65–0.70**, while **prompt tuning** stabilizes near **0.55–0.57**. Both methods briefly converge around epoch ~7 before prefix reopens the gap, indicating stable generalization rather than noise. Variability also shrinks after epoch ~5, so longer runs add cost without meaningful quality gains. Takeaway: most value is captured early—budget for ~3–5 epochs with early stopping at the plateau.
 
 
 ![eval_macro_f1](./outputs/viz/loss_train_vs_eval_four_lines.png)
-Train and eval losses fall rapidly and stabilize by ~3–5 epochs, then track closely without the eval curve rising—no classic overfitting. Prefix shows a steeper early drop and settles at a slightly lower loss, matching its stronger end metrics. After the plateau, the train–eval gap stays small, indicating stable generalization rather than memorization. Most value is captured early; extra epochs add cost with little gain. Thus, adopt early stopping once eval loss flattens for ~2 consecutive epochs.
+
+Train and eval losses fall rapidly and **stabilize by ~3–5 epochs**, then track closely without the eval curve rising—no classic overfitting. Prefix shows a steeper early drop and settles at a slightly lower loss, matching its stronger end metrics. After the plateau, the train–eval gap stays small, indicating stable generalization rather than memorization. **Most value is captured early; extra epochs add cost with little gain.** Thus, adopt early stopping once eval loss flattens for ~2 consecutive epochs.
 
 
 ## Results: Table, Statistical significance vs Base (test)
