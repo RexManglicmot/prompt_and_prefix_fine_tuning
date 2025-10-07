@@ -15,7 +15,6 @@ vastai_instances/
 vastai_retry
 
 # WILL CHANGE
-outputs/ 
 tools/.ipynb_checkpoints/
 *.tgz
 ._*
