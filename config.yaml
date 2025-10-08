@@ -30,17 +30,17 @@ core:                              # always evaluated
     - prompt_tuning
     - prefix_tuning
 
-# Optional
-baselines:                         # optional prompt-engineering baselines (no training)
-  zero_shot: true                 # set true to run
-  few_shot_k: 5                    # set 3 or 5 to run few-shot
-  few_shot_template: |
-    You are a biomedical QA system. Answer "yes" or "no".
-    {demos}
+# # Optional
+# baselines:                         # optional prompt-engineering baselines (no training)
+#   zero_shot: true                 # set true to run
+#   few_shot_k: 5                    # set 3 or 5 to run few-shot
+#   few_shot_template: |
+#     You are a biomedical QA system. Answer "yes" or "no".
+#     {demos}
 
-    Question: {question}
-    Abstract: {contexts}
-    Answer:
+#     Question: {question}
+#     Abstract: {contexts}
+#     Answer:
 
 peft:
   # Prompt Tuning (soft tokens prepended once at input)

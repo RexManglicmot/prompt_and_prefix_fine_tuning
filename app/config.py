@@ -1,5 +1,4 @@
 # app/config.py
-
 import os
 import yaml
 from dotenv import load_dotenv
@@ -19,12 +18,9 @@ def load_config(config_path: str = "config.yaml") -> SimpleNamespace:
 
     # Inject env vars (HF_TOKEN etc.)
     cfg_dict["env"] = {
-        "HF_API_TOKEN": os.getenv("HF_API_TOKEN", None)
+        "HF_TOKEN": os.getenv("HF_TOKEN", None)
     }
 
-    # BRUSH UP ON THIS CODE
-    # Convert nested dictionaries into SimpleNamespace objects
-    # This allows dot-access (cfg.model.backbone) instead of dict-style (cfg["model"]["backbone"])
     def dict_to_ns(d):
         if isinstance(d, dict):
             # Recursively convert all dict values
@@ -51,6 +47,6 @@ if __name__ == "__main__":
     print(f"Test CSV:  {cfg.data.test_csv}")
     print(f"Backbone:  {cfg.model.backbone}")
     print(f"Device:    {cfg.compute.device}")
-    print(f"HF Token:  {'Found' if cfg.env.HF_API_TOKEN else 'Missing'}")
+    print(f"HF_Token:  {'Found' if cfg.env.HF_TOKEN else 'Missing'}")
 
 # Run python3 app/config.py

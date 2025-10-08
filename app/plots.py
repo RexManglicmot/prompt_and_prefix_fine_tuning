@@ -470,7 +470,7 @@ def main():
         cm_df = load_cm_for_method(base_path, SPLIT)
         plot_confusion_matrix(cm_df, method, SPLIT)
 
-    print(f"✅ Plots and summary tables saved to: {VIZ_DIR.resolve()}")
+    print(f" Plots and summary tables saved to: {VIZ_DIR.resolve()}")
 
 if __name__ == "__main__":
     main()

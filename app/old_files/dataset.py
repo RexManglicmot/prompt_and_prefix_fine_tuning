@@ -60,16 +60,18 @@ def main():
     # Show a sample prompt from train
     preview_prompt(cfg, splits["train"].sample(1, random_state=cfg.project.seed))
 
-    print("\n✅ Dataset loader check completed successfully.")
+    print("\n Dataset loader check completed successfully.")
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"\n❌ Dataset check failed: {e}")
+        print(f"\n Dataset check failed: {e}")
         sys.exit(1)
 
 # "-m" The -m flag tells Python to treat app/ as a package.
 # This way, from app.config import load_config will work.
+
+#script only prints to stdout (split sizes, class balance, a prompt preview) and then exits.
 
 # Run python3 -m app.dataset

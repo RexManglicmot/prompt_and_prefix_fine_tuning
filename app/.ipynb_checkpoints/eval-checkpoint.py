@@ -8,13 +8,13 @@ Inputs
   - outputs/{prompt_tuning-adapter, prefix_tuning-adapter}/   (trained adapters)
 
 Outputs (under outputs/<run>/eval/)
-  - preds_val.csv, preds_test.csv
-  - metrics_val.json, metrics_test.json
+  - preds_val.csv, preds_test.csv  (adds latency_s)
+  - metrics_val.json, metrics_test.json  (adds latency_mean_s, latency_p95_s)
   - cm_val.csv, cm_test.csv
 """
 
-import os, json, re
-from typing import List, Dict
+import os, json, re, time
+from typing import List, Dict, Tuple
 
 import pandas as pd
 import numpy as np
@@ -35,9 +35,12 @@ LABELS = ["no", "yes"]  # fixed order for binary reports
 
 
 def get_device() -> torch.device:
-    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
         return torch.device("mps")
-    return torch.device("cpu")
+    else:
+        return torch.device("cpu")
 
 
 def norm_gold(s: str) -> str:
@@ -51,12 +54,10 @@ def norm_pred(text: str) -> str:
     Anything else falls back to 'no' to keep binary length consistent.
     """
     s = (text or "").strip().lower()
-    # quick wins for "yes", "yes.", "yes!" etc
     if s.startswith("yes"):
         return "yes"
     if s.startswith("no"):
         return "no"
-    # super-strict: strip non-alnum and re-check
     zs = re.sub(r"[^a-z0-9]+", "", s)
     if zs.startswith("yes"):
         return "yes"
@@ -75,12 +76,15 @@ def predict_yes_no(
     gen_max_new_tokens: int = 2,
     batch_size: int = 8,
     device: torch.device = torch.device("cpu"),
-) -> List[str]:
+) -> Tuple[List[str], List[float]]:
     """
     Greedy generate with small max_new_tokens and clamp to yes/no with norm_pred.
-    Always appends exactly one label per row -> lengths match.
+    Returns:
+      preds:      one label per row
+      latencies:  per-example seconds
     """
     preds: List[str] = []
+    latencies: List[float] = []
     model.eval()
 
     for start in range(0, len(rows), batch_size):
@@ -100,6 +104,7 @@ def predict_yes_no(
         )
         enc = {k: v.to(device) for k, v in enc.items()}
 
+        t0 = time.time()
         out = model.generate(
             **enc,
             max_new_tokens=gen_max_new_tokens,
@@ -108,11 +113,14 @@ def predict_yes_no(
             eos_token_id=tok.eos_token_id,
             pad_token_id=tok.pad_token_id,
         )
+        elapsed = time.time() - t0
+        per_example = float(elapsed) / len(chunk)
+
         texts = tok.batch_decode(out, skip_special_tokens=True)
-
         preds.extend(norm_pred(t) for t in texts)
+        latencies.extend([per_example] * len(chunk))
 
-    return preds
+    return preds, latencies
 
 
 def compute_metrics(y_true: List[str], y_pred: List[str]) -> Dict[str, float]:
@@ -176,8 +184,8 @@ def eval_split(
 ):
     os.makedirs(save_dir, exist_ok=True)
 
-    # Predict (one label per row)
-    preds = predict_yes_no(
+    # Predict (one label per row) + latency
+    preds, latencies = predict_yes_no(
         model, tok, df,
         text_tmpl=cfg.data.text_template,
         max_input_len=cfg.data.max_input_length,
@@ -186,21 +194,23 @@ def eval_split(
         device=device,
     )
     assert len(preds) == len(df), f"preds={len(preds)} vs rows={len(df)}"
+    assert len(latencies) == len(df), f"latencies={len(latencies)} vs rows={len(df)}"
 
     y_true = [norm_gold(x) for x in df["final_decision"].tolist()]
     y_pred = [p for p in preds]  # already normalized
 
-    # Save predictions table
+    # Save predictions table (+ latency_s)
     out_preds = df[["id", "question", "contexts", "final_decision"]].copy()
     out_preds["prediction"] = y_pred
+    out_preds["latency_s"] = latencies
     out_preds.to_csv(os.path.join(save_dir, f"preds_{split_name}.csv"), index=False)
 
-    # (Optional) quick debug:
-    # print("y_true uniques:", sorted(set(y_true)))
-    # print("y_pred uniques:", sorted(set(y_pred)))
-
-    # Metrics + confusion matrix
+    # Metrics + confusion matrix (+ latency summaries)
     metrics = compute_metrics(y_true, y_pred)
+    metrics.update({
+        "latency_mean_s": float(np.mean(latencies)),
+        "latency_p95_s": float(np.percentile(latencies, 95)),
+    })
     with open(os.path.join(save_dir, f"metrics_{split_name}.json"), "w") as f:
         json.dump(metrics, f, indent=2)
 
@@ -208,7 +218,9 @@ def eval_split(
     cm_df.to_csv(os.path.join(save_dir, f"cm_{split_name}.csv"))
 
     print(f"[{split_name}] n={len(df)} "
-          f"acc={metrics['accuracy']:.4f} macro_f1={metrics['macro_f1']:.4f} mcc={metrics['mcc']:.4f}")
+          f"acc={metrics['accuracy']:.4f} macro_f1={metrics['macro_f1']:.4f} "
+          f"mcc={metrics['mcc']:.4f} "
+          f"lat_mean={metrics['latency_mean_s']:.3f}s p95={metrics['latency_p95_s']:.3f}s")
 
 
 def main():
@@ -234,23 +246,23 @@ def main():
         model, save_root = maybe_load_adapter(base_model, method, cfg.project.output_dir)
         model.to(device)
         model.eval()
+        os.makedirs(save_root, exist_ok=True)
 
-        # Add this debug snippet
-        print("[eval] active_adapter:", getattr(model, "active_adapter", None))
-        print("[eval] peft_config keys:", list(getattr(model, "peft_config", {}).keys()))
-        print()
-
-        print(f"[eval] num_virtual_tokens: {cfg.peft.prompt_num_virtual_tokens if method == 'prompt_tuning' else cfg.peft.prefix_num_virtual_tokens}")
+        # minimal run settings echo
         print(f"[eval] lr_prompt: {cfg.train.lr_prompt}")
         print(f"[eval] lr_prefix: {cfg.train.lr_prefix}")
+        print(f"[eval] epochs: {cfg.train.epochs}")
+        nv = None
+        if hasattr(model, "peft_config") and "default" in model.peft_config:
+            nv = getattr(model.peft_config["default"], "num_virtual_tokens", None)
+        print("[eval] num_virtual_tokens:", nv if nv is not None else "NONE")
         print()
-        os.makedirs(save_root, exist_ok=True)
 
         eval_split(cfg, "val",  val_df,  tok, model, save_root, device)
         eval_split(cfg, "test", test_df, tok, model, save_root, device)
         print()
-        
-    print("\n✅ Evaluation complete.")
+
+    print("\n Evaluation complete.")
 
 
 if __name__ == "__main__":

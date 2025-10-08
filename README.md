@@ -135,8 +135,11 @@ Both adapters clearly beat the Base. Prompt Tuning shows ΔAccuracy +0.269 (p=0.
 - **Pilot + human review loop**. Run a small clinical pilot with reviewer feedback on model decisions and add a lightweight “escalate/abstain” path for low-confidence cases.
 
 ## Conclusion
-Lightweight adaptation beats heavy retraining here. On PubMedQA (binary yes/no), both prompt and prefix tuning deliver large gains over base—0.72/0.65 and 0.74/0.70 (Accuracy/Macro-F1) respectively—while keeping latency ~16–21 ms/ex and shipping tiny, governable adapters. Training/eval curves stabilize by ~3–5 epochs with a small gap, indicating a good fit without over- or underfitting. Next, I'lll balance classes and validate externally to harden the system for pilot use.
+Lightweight adaptation beats heavy retraining here. On PubMedQA (binary yes/no), both prompt and prefix tuning deliver large gains over base—0.72/0.65 and 0.74/0.70 (Accuracy/Macro-F1) respectively—while keeping latency ~16–21 ms/ex and shipping tiny, governable adapters. Training/eval curves stabilize by ~3–5 epochs with a small gap, indicating a good fit without over- or underfitting. Next, I'll balance classes and validate externally to harden the system for pilot use.
 
 ## Tech Stack
 Python, PyTroch, Transformers, scikit-learn, pandas, numpy, GPU, PEFT, LLM
+
+### Build order
+config.yaml, config.py, eda.ipynb (clean and segregate data), train.py, eval.py, stats_eval.py, and plots.py
 

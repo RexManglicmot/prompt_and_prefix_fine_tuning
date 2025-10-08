@@ -16,7 +16,7 @@ Full fine-tuning sounds powerful but is rarely the right first move in healthcar
 These two fine-tuning options matters to the business because it delivers **speed to value**, letting teams iterate in hours or days instead of weeks, while **lowering cost** by training and storing small adapters and reusing the same base model across use cases. Keeping foundation weights immutable **strengthens governance and risk with easier audits**, rollbacks, and approvals. It also increases operational flexibility by enabling different adapters for different clinics or workflows without re-platforming.
 
 ## Dataset
-I used the **PubMedQA-Labeled** from the [pubmedqa github](https://github.com/pubmedqa/pubmedqa/blob/master/data/ori_pqal.json)from `yes`/`no` subset (I dropped the `maybe` category). Each record has a `question`, `supporting contexts`, and a `final_decision` label. In terms of cleaning, I normalized labels to lowercase yes/no, stripped whitespace, dropped rows with empty text, and deduplicate by (question, contexts) to avoid leakage. I then stratified a 80/10/10 split with a fixed seed (42) so the class ratio (~62% yes / ~38% no) is preserved across train/val/test.
+I used the **PubMedQA-Labeled** from the [pubmedqa github](https://github.com/pubmedqa/pubmedqa/blob/master/data/ori_pqal.json) from `yes`/`no` subset (I dropped the `maybe` category). Each record has a `question`, `supporting contexts`, and a `final_decision` label. In terms of cleaning, I normalized labels to lowercase yes/no, stripped whitespace, dropped rows with empty text, and deduplicate by (question, contexts) to avoid leakage. I then stratified a 80/10/10 split with a fixed seed (42) so the class ratio (~62% yes / ~38% no) is preserved across train/val/test.
 
 | Split     |       N |     Yes |      No |     Yes % |      No % |
 | --------- | ------: | ------: | ------: | --------: | --------: |
@@ -139,4 +139,7 @@ Lightweight adaptation beats heavy retraining here. On PubMedQA (binary yes/no),
 
 ## Tech Stack
 Python, PyTroch, Transformers, scikit-learn, pandas, numpy, GPU, PEFT, LLM
+
+### Build order
+config.yaml, config.py, eda.ipynb (clean and segregate data), train.py, eval.py, stats_eval.py, and plots.py
 

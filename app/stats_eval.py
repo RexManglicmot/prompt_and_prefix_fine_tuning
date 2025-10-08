@@ -138,9 +138,9 @@ def main():
         df = pd.DataFrame(rows)
         os.makedirs(PROJECT_OUT, exist_ok=True)
         df.to_csv(OUTPUT_CSV, index=False)
-        print(f"\n✅ Saved CSV: {OUTPUT_CSV}")
+        print(f"\n Saved CSV: {OUTPUT_CSV}")
     else:
-        print("\n⚠️ No results to save (missing files or zero overlap).")
+        print("\n No results to save (missing files or zero overlap).")
 
 if __name__ == "__main__":
     main()

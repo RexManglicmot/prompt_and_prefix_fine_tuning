@@ -1,43 +1,37 @@
 # app/eval.py
 """
-Evaluate Base vs Prompt Tuning vs Prefix Tuning on PubMedQA.
+Evaluate Base vs Prompt Tuning vs Prefix Tuning on PubMedQA (binary yes/no).
 
 Inputs
   - config.yaml
   - data/pubmedqa_{val,test}.csv  (id, question, contexts, final_decision)
   - outputs/{prompt_tuning-adapter, prefix_tuning-adapter}/   (trained adapters)
 
-Outputs (under outputs/<run_name>/eval/)
+Outputs (under outputs/<run>/eval/)
   - preds_val.csv, preds_test.csv
   - metrics_val.json, metrics_test.json
-  - cm_val.csv, cm_test.csv      (confusion matrices as tables)
+  - cm_val.csv, cm_test.csv
 """
 
-import os
-import json
-from typing import List, Tuple, Dict
+import os, json, re
+from typing import List, Dict
 
 import pandas as pd
 import numpy as np
 import torch
 from sklearn.metrics import (
     accuracy_score,
+    f1_score,
     precision_recall_fscore_support,
     matthews_corrcoef,
     confusion_matrix,
 )
 
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSeq2SeqLM,
-)
-
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from peft import PeftModel
 from app.config import load_config
 
-
-YES_TOKENS = ("yes", " Yes", "YES")
-NO_TOKENS  = ("no", " No", "NO")
+LABELS = ["no", "yes"]  # fixed order for binary reports
 
 
 def get_device() -> torch.device:
@@ -46,15 +40,29 @@ def get_device() -> torch.device:
     return torch.device("cpu")
 
 
-def normalize_label(s: str) -> str:
-    s = str(s).strip().lower()
+def norm_gold(s: str) -> str:
+    s = (s or "").strip().lower()
+    return "yes" if s == "yes" else "no"
+
+
+def norm_pred(text: str) -> str:
+    """
+    Normalize model output strictly to {'yes','no'}.
+    Anything else falls back to 'no' to keep binary length consistent.
+    """
+    s = (text or "").strip().lower()
+    # quick wins for "yes", "yes.", "yes!" etc
     if s.startswith("yes"):
         return "yes"
-    else:
+    if s.startswith("no"):
         return "no"
-    # if s.startswith("no"):            # Not dealing with unknown anymore
-    #     return "no"
-    # return "unknown"
+    # super-strict: strip non-alnum and re-check
+    zs = re.sub(r"[^a-z0-9]+", "", s)
+    if zs.startswith("yes"):
+        return "yes"
+    if zs.startswith("no"):
+        return "no"
+    return "no"  # fallback keeps preds aligned with rows
 
 
 @torch.no_grad()
@@ -64,13 +72,13 @@ def predict_yes_no(
     rows: pd.DataFrame,
     text_tmpl: str,
     max_input_len: int,
-    gen_max_new_tokens: int = 3,
+    gen_max_new_tokens: int = 2,
     batch_size: int = 8,
     device: torch.device = torch.device("cpu"),
 ) -> List[str]:
     """
-    Greedy-generate 1-3 tokens, map to 'yes'/'no'/unknown.    took out unknown
-    Small, simple batches for CPU/MPS.
+    Greedy generate with small max_new_tokens and clamp to yes/no with norm_pred.
+    Always appends exactly one label per row -> lengths match.
     """
     preds: List[str] = []
     model.eval()
@@ -82,6 +90,7 @@ def predict_yes_no(
             text_tmpl.format(question=r["question"], contexts=r["contexts"])
             for _, r in chunk.iterrows()
         ]
+
         enc = tok(
             prompts,
             max_length=max_input_len,
@@ -95,62 +104,48 @@ def predict_yes_no(
             **enc,
             max_new_tokens=gen_max_new_tokens,
             do_sample=False,
+            num_beams=1,
+            eos_token_id=tok.eos_token_id,
+            pad_token_id=tok.pad_token_id,
         )
         texts = tok.batch_decode(out, skip_special_tokens=True)
 
-        for t in texts:
-            t = t.strip()
-            low = t.lower()
-            if low.startswith("yes"):
-                preds.append("yes")
-            elif low.startswith("no"):
-                preds.append("no")
-            elif any(t.startswith(y) for y in YES_TOKENS):  # sometimes models emit punctuation first; try simple fallbacks
-                preds.append("yes")
-            elif any(t.startswith(n) for n in NO_TOKENS):
-                preds.append("no")
-            else:
-                # preds.append("unknown")                   # not dealring with unknown anymore
-                pass
+        preds.extend(norm_pred(t) for t in texts)
 
     return preds
 
 
 def compute_metrics(y_true: List[str], y_pred: List[str]) -> Dict[str, float]:
-    y_true = [normalize_label(x) for x in y_true]
-    y_pred = [normalize_label(x) for x in y_pred]
-
-    # filter out "unknown" from predictions for binary metrics (optional)
-    # Here, we keep them—they’ll just count as wrong unless the label is unknown.
+    # All labels already normalized to {'yes','no'}
     acc = accuracy_score(y_true, y_pred)
-
-    # Use 'yes' as positive class
-    pr, rc, f1, _ = precision_recall_fscore_support(
-        y_true, y_pred, labels=["yes", "no"], average="binary", pos_label="yes", zero_division=0
+    macro_f1 = f1_score(y_true, y_pred, labels=LABELS, average="macro")
+    pr, rc, f1, support = precision_recall_fscore_support(
+        y_true, y_pred, labels=LABELS, average=None, zero_division=0
     )
     mcc = matthews_corrcoef(y_true, y_pred)
 
     return {
         "accuracy": float(acc),
-        "precision_yes": float(pr),
-        "recall_yes": float(rc),
-        "f1_yes": float(f1),
+        "macro_f1": float(macro_f1),
         "mcc": float(mcc),
-        # "unknown_rate": float(np.mean([p == "unknown" for p in y_pred])),
+        "per_class": {
+            "no":  {"precision": float(pr[0]), "recall": float(rc[0]), "f1": float(f1[0]), "support": int(support[0])},
+            "yes": {"precision": float(pr[1]), "recall": float(rc[1]), "f1": float(f1[1]), "support": int(support[1])},
+        },
     }
 
 
 def cm_table(y_true: List[str], y_pred: List[str]) -> pd.DataFrame:
-    labels = ["yes", "no"]                          # took out unknown
-    y_true_n = [normalize_label(x) for x in y_true]
-    y_pred_n = [normalize_label(x) for x in y_pred]
-    cm = confusion_matrix(y_true_n, y_pred_n, labels=labels)
-    return pd.DataFrame(cm, index=[f"true_{l}" for l in labels], columns=[f"pred_{l}" for l in labels])
+    cm = confusion_matrix(y_true, y_pred, labels=LABELS)
+    return pd.DataFrame(cm, index=[f"true_{l}" for l in LABELS], columns=[f"pred_{l}" for l in LABELS])
 
 
 def load_backbone_and_tokenizer(cfg):
     tok = AutoTokenizer.from_pretrained(cfg.model.tokenizer, use_fast=True)
-    model = AutoModelForSeq2SeqLM.from_pretrained(cfg.model.backbone)
+    model = AutoModelForSeq2SeqLM.from_pretrained(
+        cfg.model.backbone,
+        low_cpu_mem_usage=True,
+    )
     model.config.pad_token_id = tok.pad_token_id
     model.config.use_cache = False
     return tok, model
@@ -163,7 +158,6 @@ def maybe_load_adapter(model, method: str, out_dir_root: str):
     """
     if method == "base":
         return model, os.path.join(out_dir_root, "base-eval")
-
     adapter_dir = os.path.join(out_dir_root, f"{method}-adapter")
     if not os.path.isdir(adapter_dir):
         raise FileNotFoundError(f"Adapter dir not found: {adapter_dir}")
@@ -182,39 +176,39 @@ def eval_split(
 ):
     os.makedirs(save_dir, exist_ok=True)
 
+    # Predict (one label per row)
     preds = predict_yes_no(
         model, tok, df,
         text_tmpl=cfg.data.text_template,
         max_input_len=cfg.data.max_input_length,
-        gen_max_new_tokens=3,
+        gen_max_new_tokens=2,
         batch_size=8,
         device=device,
     )
+    assert len(preds) == len(df), f"preds={len(preds)} vs rows={len(df)}"
 
-    y_true = [normalize_label(x) for x in df["final_decision"].tolist()]
-    y_pred = [normalize_label(x) for x in preds]
+    y_true = [norm_gold(x) for x in df["final_decision"].tolist()]
+    y_pred = [p for p in preds]  # already normalized
 
-    # Save predictions
+    # Save predictions table
     out_preds = df[["id", "question", "contexts", "final_decision"]].copy()
     out_preds["prediction"] = y_pred
     out_preds.to_csv(os.path.join(save_dir, f"preds_{split_name}.csv"), index=False)
 
-    # After built y_true and y_pred lists
-    print("y_true uniques:", sorted(set(y_true)))
-    print("y_pred uniques:", sorted(set(y_pred)))
+    # (Optional) quick debug:
+    # print("y_true uniques:", sorted(set(y_true)))
+    # print("y_pred uniques:", sorted(set(y_pred)))
 
-    # Metrics
+    # Metrics + confusion matrix
     metrics = compute_metrics(y_true, y_pred)
     with open(os.path.join(save_dir, f"metrics_{split_name}.json"), "w") as f:
         json.dump(metrics, f, indent=2)
 
-    # Confusion matrix table
     cm_df = cm_table(y_true, y_pred)
     cm_df.to_csv(os.path.join(save_dir, f"cm_{split_name}.csv"))
 
-    print(f"[{split_name}] accuracy={metrics['accuracy']:.4f} "
-          f"f1_yes={metrics['f1_yes']:.4f} mcc={metrics['mcc']:.4f} ")
-          # f"unknown_rate={metrics['unknown_rate']:.4f}")
+    print(f"[{split_name}] n={len(df)} "
+          f"acc={metrics['accuracy']:.4f} macro_f1={metrics['macro_f1']:.4f} mcc={metrics['mcc']:.4f}")
 
 
 def main():
@@ -237,24 +231,27 @@ def main():
 
     for method in methods:
         print(f"\n=== Evaluating: {method} ===")
-        # Load adapter if needed
         model, save_root = maybe_load_adapter(base_model, method, cfg.project.output_dir)
         model.to(device)
         model.eval()
 
-        # Each method gets its own eval/ folder
+        # Add this debug snippet
+        print("[eval] active_adapter:", getattr(model, "active_adapter", None))
+        print("[eval] peft_config keys:", list(getattr(model, "peft_config", {}).keys()))
+        print()
+
+        print(f"[eval] num_virtual_tokens: {cfg.peft.prompt_num_virtual_tokens if method == 'prompt_tuning' else cfg.peft.prefix_num_virtual_tokens}")
+        print(f"[eval] lr_prompt: {cfg.train.lr_prompt}")
+        print(f"[eval] lr_prefix: {cfg.train.lr_prefix}")
+        print()
         os.makedirs(save_root, exist_ok=True)
 
         eval_split(cfg, "val",  val_df,  tok, model, save_root, device)
         eval_split(cfg, "test", test_df, tok, model, save_root, device)
-
+        print()
+        
     print("\n✅ Evaluation complete.")
 
 
 if __name__ == "__main__":
     main()
-
-"""
-Start 12:48
-
-"""

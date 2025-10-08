@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 import pandas as pd
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -26,8 +27,8 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSeq2SeqLM,
     DataCollatorForSeq2Seq,
-    Trainer,
-    TrainingArguments,
+    Seq2SeqTrainer as Trainer,                 # keep local name 'Trainer'
+    Seq2SeqTrainingArguments as TrainingArguments,  # keep local name 'TrainingArguments'
     set_seed,
 )
 
@@ -113,6 +114,65 @@ def print_device_info():
         print("MPS (Apple Silicon) detected")
     else:
         print("CPU mode")
+
+
+# ---------------------------
+# Metrics helpers (no sklearn dependency)
+# ---------------------------
+
+def _normalize_yn(text: str) -> str:
+    """Map any decoded string to 'yes' or 'no'."""
+    t = (text or "").strip().lower()
+    if "yes" in t:
+        return "yes"
+    if "no" in t:
+        return "no"
+    # fallback to 'no' to avoid crashes; adjust if needed
+    return "no"
+
+def _macro_f1_binary(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """
+    Macro-F1 for two classes: 'no' and 'yes'.
+    """
+    def f1_for(label: str) -> float:
+        tp = np.sum((y_true == label) & (y_pred == label))
+        fp = np.sum((y_true != label) & (y_pred == label))
+        fn = np.sum((y_true == label) & (y_pred != label))
+        # precision/recall with safe zero-division handling
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        rec  = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        return (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+
+    return 0.5 * (f1_for("no") + f1_for("yes"))
+
+def compute_metrics_fn(eval_pred, tokenizer):
+    """
+    Decode predictions/labels and compute accuracy + macro_f1.
+    Works with Seq2SeqTrainer(predict_with_generate=True).
+    """
+    preds_ids = eval_pred.predictions
+    if isinstance(preds_ids, tuple):  # some HF versions return (sequences, …)
+        preds_ids = preds_ids[0]
+
+    # decode predictions
+    pred_texts = tokenizer.batch_decode(preds_ids, skip_special_tokens=True)
+
+    # decode labels (replace -100 with pad)
+    labels = eval_pred.label_ids
+    pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else 0
+    labels = np.where(labels == -100, pad_id, labels)
+    label_texts = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+    y_pred = np.array([_normalize_yn(t) for t in pred_texts])
+    y_true = np.array([_normalize_yn(t) for t in label_texts])
+
+    acc = float(np.mean(y_pred == y_true)) if len(y_true) else 0.0
+    macro_f1 = _macro_f1_binary(y_true, y_pred) if len(y_true) else 0.0
+
+    return {
+        "accuracy": acc,
+        "macro_f1": macro_f1,
+    }
 
 
 # ---------------------------
@@ -202,14 +262,16 @@ def train_one(cfg, method: str):
         learning_rate=lr,
         weight_decay=cfg.train.weight_decay,
         logging_steps=cfg.train.logging_steps,
-        evaluation_strategy="epoch",                              # was 'evaluation_strategy' but error occured in GPU instance # Changed it back to v4
+        evaluation_strategy="epoch",
         save_strategy=cfg.train.save_strategy,
         lr_scheduler_type=cfg.train.scheduler,
         warmup_ratio=cfg.train.warmup_ratio,
         fp16=use_fp16,
         bf16=use_bf16,
         optim=cfg.train.optimizer,
-        # predict_with_generate=False,                      # was hat error is also from Transformers v5. In v5, predict_with_generate is no longer a valid TrainingArguments kwarg (it used to be in v4; in v5 you’d use Seq2SeqTrainingArguments or just omit it).
+        predict_with_generate=True,                       # <-- enable generation for metrics
+        generation_max_length=cfg.data.max_target_length,
+        generation_num_beams=1,
         report_to=[],
     )
 
@@ -220,12 +282,13 @@ def train_one(cfg, method: str):
         eval_dataset=ds_val,
         data_collator=data_collator,
         tokenizer=tokenizer,
+        compute_metrics=lambda p: compute_metrics_fn(p, tokenizer),  # <-- per-epoch eval metrics
     )
 
     trainer.train()
     trainer.save_model(out_dir)  # saves adapter + config
 
-    # lightweight training summary (loss per epoch)
+    # lightweight training summary (loss per epoch + eval_* from log_history)
     hist = getattr(trainer, "state", None)
     summary = {
         "method": method,
@@ -239,7 +302,7 @@ def train_one(cfg, method: str):
     with open(os.path.join(out_dir, "train_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
 
-    print(f"✅ Finished training {method}. Artifacts → {out_dir}")
+    print(f" Finished training {method}. Artifacts → {out_dir}")
 
 
 def main():
