@@ -77,7 +77,7 @@ Outputs
 | Prefix Tuning | **0.703** | **0.742** |   0.596 |    0.810 |          0.017 / 0.017 |            **4.915** |
 
 
-Both adapters deliver large gains over Base (Accuracy 0.45 → 0.72–0.74, Macro-F1 0.39 → 0.65–0.70). The biggest jump is on the “yes” class (F1: 0.20 → 0.81), while “no” stays similar (Prefix 0.60, Prompt 0.49, Base 0.58). Prefix Tuning is the top performer (Acc 0.742, Macro-F1 0.701) with essentially the same latency as Base (≈0.017–0.021 s/example). Prompt Tuning is nearly as accurate (Acc 0.719, Macro-F1 0.644) but uses ~0.205M trainable params vs ~4.915M for Prefix—so pick Prompt when memory is tight, and Prefix when you want the best absolute accuracy.
+Both adapters deliver large gains over Base (Accuracy 0.449 → 0.719–0.742, Macro-F1 0.389 → 0.648–0.703). The biggest jump is on the “yes” class (F1: 0.197 → 0.81), while “no” stays similar (Prefix 0.596, Prompt 0.49, Base 0.581). Prefix Tuning is the top performer (Acc 0.742, Macro-F1 0.703) with essentially the same latency as Base (0.017 vs 0.016, respectively). Prompt Tuning is nearly as accurate (Acc 0.719, Macro-F1 0.648) but uses ~0.205M trainable params vs ~4.915M for Prefix—so pick Prompt when memory is tight, and Prefix when you want the best absolute accuracy.
 
 
 ## Results: Visuals
@@ -88,7 +88,7 @@ Both adaptations outperform the base where **Prompt** gains **+0.27 Accuracy (0.
 
 ![Latency](./outputs/viz/latency_bar_test.png)
 
-Latency is comparable with a range of 0.016–0.02 seconds, so the **quality gains from prompt/prefix tuning come with no material runtime cost**. Prefix essentially matches base, while Prompt adds ~0.005 s from longer inputs.
+Latency is comparable with a range of 0.016–0.02 seconds, so the **quality gains from prompt/prefix tuning come with no material runtime cost**. Prefix essentially matches base, while Prompt adds ~0.004 s from longer inputs.
 
 
 ![param_footprint](./outputs/viz/param_footprint_bar.png)
@@ -98,17 +98,17 @@ Train & ship small adapters instead of new models. Adapters are tiny where **Pro
 
 ![prompt](./outputs/viz/cm_prompt_tuning_test.png)
 
-Prompt tuning is highly sensitive to “yes”—it correctly captures 52/55 positives (recall ≈ 0.95), which is great for not missing actionable findings. The trade-off is specificity: with 22 false positives vs 12 true negatives (“no” recall ≈ 0.35), it tends to over-call “yes.” For deployment, calibrate the decision threshold and train with more (or harder) no examples or class weighting to cut false positives while preserving the strong yes recall.
+Prompt tuning is highly sensitive to “yes”—it correctly **captures 52/55 positives** (recall ≈ 0.95), which is great for not missing actionable findings. The trade-off is specificity: with 22 false positives vs 12 true negatives (“no” recall ≈ 0.35), it tends to over-call “yes.” For deployment, calibrate the decision threshold and train with more (or harder) no examples or class weighting to cut false positives while preserving the strong yes recall.
 
 
 ![prefix](./outputs/viz/cm_prefix_tuning_test.png)
 
-Prefix tuning shows a balanced error profile: it captures 49/55 positives (recall ≈ 0.89) and yields 17 TN / 17 FP on negatives (specificity ≈ 0.50; precision ≈ 0.74). Overall performance is Accuracy ≈ 0.74 (66/89) with Macro-F1 ≈ 0.70, emphasizing strong sensitivity while keeping false alarms moderate—appropriate for clinical QA summaries.
+Prefix tuning shows a balanced error profile: it **captures 49/55 positives** (recall ≈ 0.89) and yields 17 TN / 17 FP on negatives (specificity ≈ 0.50; precision ≈ 0.74). Overall performance is Accuracy ≈ 0.74 (66/89) with Macro-F1 ≈ 0.70, emphasizing strong sensitivity while keeping false alarms moderate—appropriate for clinical QA summaries.
 
 
 ![eval_macro_f1](./outputs/viz/eval_macro_f1_per_epoch.png)
 
-Macro-F1 climbs rapidly in the first **3–5 epochs** and **then plateaus**. Prefix tuning stays ahead by roughly 0.05–0.10 across most epochs, ending around 0.65–0.68, while prompt tuning stabilizes near 0.55–0.57. One exception: prompt spikes at epoch 4 (~0.67) above prefix (~0.60), and epochs 5–7 are roughly tied (~0.63–0.64) before prefix reopens the gap. Variability shrinks after epoch ~5, so longer runs add cost without meaningful gains, so using early stopping through epoch 4–5 to capture the prompt spike, then stop at the plateau.
+Macro-F1 climbs rapidly in the first **3–5 epochs** and **then plateaus**. Prefix tuning stays ahead by roughly 0.05–0.10 across most epochs, ending around 0.65–0.68, while prompt tuning stabilizes near 0.55–0.57. One exception: prompt spikes at epoch 4 (~0.67) above prefix (~0.60), and epochs 5–7 are roughly tied (~0.63–0.64) before prefix reopens the gap. Variability shrinks after epoch ~5, so longer runs add cost without meaningful gains, so using **early stopping through epoch 4–5 to capture the prompt spike**, then stop at the plateau.
 
 
 ![eval_macro_f1](./outputs/viz/loss_train_vs_eval_four_lines.png)
@@ -136,7 +136,7 @@ Both adapters outperform Base on the paired test set (N=89). **Prompt Tuning**: 
 - **Pilot + human review loop**. Run a small clinical pilot with reviewer feedback on model decisions and add a lightweight “escalate/abstain” path for low-confidence cases.
 
 ## Conclusion
-Lightweight adaptation beats heavy retraining here. On PubMedQA (binary yes/no), both prompt and prefix tuning deliver large gains over base—0.72/0.65 and 0.74/0.70 (Accuracy/Macro-F1) respectively—while keeping latency ~16–21 ms/ex and shipping tiny, governable adapters. Training/eval curves stabilize by ~3–5 epochs with a small gap, indicating a good fit without over- or underfitting. Next, I'll balance classes and validate externally to harden the system for pilot use.
+Lightweight adaptation beats heavy retraining here. On PubMedQA (binary yes/no), both prompt and prefix tuning deliver large gains over base—0.72/0.65 and 0.74/0.70 (Accuracy/Macro-F1) respectively—while keeping latency ~16–20 ms/ex and shipping tiny, governable adapters. Training/eval curves stabilize by ~3–5 epochs with a small gap, indicating a good fit without over- or underfitting. Next, I'll balance classes and validate externally to harden the system for pilot use.
 
 ## Tech Stack
 Python, PyTroch, Transformers, scikit-learn, pandas, numpy, GPU, PEFT, LLM
