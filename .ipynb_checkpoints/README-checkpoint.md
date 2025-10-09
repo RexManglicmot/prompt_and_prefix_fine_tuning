@@ -128,7 +128,7 @@ Train and eval losses fall rapidly and **stabilize by ~3–5 epochs**, then trac
 
 The table combines two paired evaluations on the same test items (N=89). McNemar’s exact test looks only at disagreements between Base and the tuned model—n01 are fixes (Base wrong, Tuned right) and n10 are regressions (Base right, Tuned wrong)—to ask if accuracy truly improved. The paired bootstrap reports 95% confidence intervals for the effect size (the improvement in Macro-F1 and Accuracy), showing how large and stable the gains are.
 
-Both adapters outperform Base on the paired test set (N=89). **Prompt Tuning**: ΔAccuracy +0.270** (p=0.0049; b=46, c=22) and **ΔMacro-F1 +0.258** [0.1090, 0.4089]. **Prefix Tuning**: ΔAccuracy +0.292 (p=0.0013; b=44, c=18) and **ΔMacro-F1 +0.316** [0.1708, 0.4576]. The bootstrap CIs exclude 0 and McNemar’s discordant counts show many more fixes than regressions, with Prefix providing the larger, more balanced lift.
+Both adapters outperform Base on the paired test set (N=89). **Prompt Tuning**: ΔAccuracy +0.270 (p=0.0049; b=46, c=22) and **ΔMacro-F1 +0.258** [0.1090, 0.4089]. **Prefix Tuning**: ΔAccuracy +0.292 (p=0.0013; b=44, c=18) and **ΔMacro-F1 +0.316** [0.1708, 0.4576]. The bootstrap CIs exclude 0 and McNemar’s discordant counts show many more fixes than regressions, with Prefix providing the larger, more balanced lift.
 
 
 ## Next Steps
