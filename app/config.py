@@ -49,4 +49,7 @@ if __name__ == "__main__":
     print(f"Device:    {cfg.compute.device}")
     print(f"HF_Token:  {'Found' if cfg.env.HF_TOKEN else 'Missing'}")
 
+# Remember to export the HF_TOKEN first, otherwise, it will crash!
 # Run python3 app/config.py
+# It worked and was quick
+# Next, is eda.ipynb

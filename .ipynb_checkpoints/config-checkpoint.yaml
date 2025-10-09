@@ -1,11 +1,12 @@
 # PubMedQA PEFT – config.yaml
 
-
+# Project general features
 project:
   name: pubmedqa_peft
   seed: 42
   output_dir: outputs
 
+# Data
 data:
   # paths to stratified csvs, should contain only 4 columns
   train_csv: data/clean_final/pubmedqa_train_clean.csv
@@ -20,95 +21,57 @@ data:
     Abstract: {contexts}
     Instruction: Answer "yes" or "no" based on the abstract.
 
+# Model
 model:
-  backbone: google/flan-t5-xl       # ~3B # CHANGED, was google/flan-t5-small
-  tokenizer: google/flan-t5-xl      # ~3B # CHANGED, was google/flan-t5-small
+  backbone: google/flan-t5-xl       
+  tokenizer: google/flan-t5-xl      
 
-core:                              # always evaluated
+# Core
+core:                              
   compare_base: true               # Base (no tuning)
   methods:                         # PEFT methods to train/eval
     - prompt_tuning
     - prefix_tuning
 
-# Optional
-baselines:                         # optional prompt-engineering baselines (no training)
-  zero_shot: true                 # set true to run
-  few_shot_k: 5                    # set 3 or 5 to run few-shot
-  few_shot_template: |
-    You are a biomedical QA system. Answer "yes" or "no".
-    {demos}
-
-    Question: {question}
-    Abstract: {contexts}
-    Answer:
-
+# PEFT
 peft:
   # Prompt Tuning (soft tokens prepended once at input)
-  prompt_num_virtual_tokens: 50 # 80 #50 # 20
+  prompt_num_virtual_tokens: 50         # CHANGED: 80, 50, 20
 
   # Prefix Tuning (prefix key/values injected at each attention module)
-  prefix_num_virtual_tokens: 50 # 5
+  prefix_num_virtual_tokens: 50         # CHANGED, 5
 
+# Training
 train:
+  # specs
   epochs: 13
-  batch_size: 2   # CHANGED, was 8
-
-  # separate lrs for PEFT types (small adapters can use higher lr)
-  lr_prompt: 7e-3 # 1e-3
-  lr_prefix: 5e-4
-
-  optimizer: adamw_torch                # was adafactor
+  batch_size: 2                         # CHANGED, was 8
+  optimizer: adamw_torch                # CHANGED, was adafactor
   weight_decay: 0.0
   scheduler: constant_with_warmup
   warmup_ratio: 0.1
-  max_grad_norm: 1.0
+
+  # separate lrs for PEFT types (small adapters can use higher lr)
+  lr_prompt: 7e-3                       # CHANGED, was 1e-3
+  lr_prefix: 5e-4
 
   # checkpointing / logging
   save_strategy: epoch
   logging_steps: 10
 
-selective_prediction:
-  enable: true
-  tau: 0.75                      # abstain if max_prob < tau
-  tau_grid: [0.5, 0.6, 0.7, 0.8, 0.9]
-
+# Device
 compute:
-  backend: cloud                  # CHANGED    # local | cloud
-  device: cuda                     # CHANGED from cuda (GPU train) -> cpu (local for eval)   # auto | cpu | mps | cuda
-  mixed_precision: none           # CHANGED from fp16 -> bf16 (GPU on train) -> none(local for eval)    # bf16 | fp16 | none
-  compile: false                              # optional torch.compile speedup
-  provider: vast.ai               # CHANGED    # vast.ai | colab | aws (free text) # IF, choose to do GPU, will update
-
-# To use a cloud GPU, set... 
-# compute.device: cuda
-# compute.backend: cloud
-# fill compute.provider
-
-serverless:
-  # Hugging Face Inference API model repos (for latency/demo)
-  base_repo: ""                  # e.g., google/flan-t5-small
-  tuned_repo_prompt: ""          # e.g., your-username/pubmedqa-flant5s-prompt
-  tuned_repo_prefix: ""          # e.g., your-username/pubmedqa-flant5s-prefix
-  timeout_s: 30
-  max_retries: 2
-
+  device: cuda                          # CHANGED, was MPS when I was on a MacOS
+  mixed_precision: none      
+  
+# Evals
 evaluation:
-  # which reports/plots to generate
-  make_tables: true
-  make_plots:  true
-  plots:
-    performance_bar:      true
-    param_footprint_bar:  true
-    loss_curve:           true
-    latency_bar:          true
-    confusion_matrix:     true
-    coverage_accuracy:    true
-
-artifacts:
-  save_examples_jsonl: true      # write per-example preds/confidences
-  push_to_hub: false             # set true to upload tuned adapters/model card
-  hub_private: true
-
-repro:
-  log_environment: true          # torch/cuda/mps, VRAM, package versions
-  save_commit_hash: true
+  stats:
+    project_out: outputs
+    splits: ["test"]
+    tuned_methods: ["prompt_tuning", "prefix_tuning"]
+    labels: ["no", "yes"]
+    output_csv: outputs/stats_eval_test.csv
+    bootstrap:
+      B: 5000
+      seed: 0
